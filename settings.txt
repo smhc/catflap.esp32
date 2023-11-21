@@ -1,0 +1,7 @@
+{"NAME":"CATFLAP","GPIO":[1,1,1,3872,3872,1,1,3872,7648,1,3872,0,0,0,0,0,0,0,1,1,1,1],"FLAG":0,"BASE":1}
+
+-------------
+
+Rule1
+on time#initialized do backlog ruletimer1 1 endon
+on rules#timer=1 do ProcessWake endon
