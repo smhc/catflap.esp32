@@ -25,8 +25,9 @@ I had to do some modifications to the LM393 sensor to allow the IR sensor to be 
 
 As it is powered by 4 AA batteries, my goal was to keep power usage as low as possible. I used the 'enable/sleep' pin on the DRV8833 and activated the LMR393 via the 2N2222. (NB: I was also able to power the LM393 directly via the ESP32, but it's close/over the current limit).
 
-![PXL_20231115_013232240](https://github.com/arendst/Tasmota/assets/6404304/9fc6bb91-773c-496f-97ef-6754cc3c5f68)
-![PXL_20231115_013253056](https://github.com/arendst/Tasmota/assets/6404304/296ef5c2-7d8e-4be8-acd6-4297920685d2)
+![PXL_20231121_033213657](https://github.com/smhc/catflap.esp32/assets/6404304/2d50627d-0999-44dc-aba9-d612f8b53e8d)
+![PXL_20231121_033148169](https://github.com/smhc/catflap.esp32/assets/6404304/c6ccdf3b-5b0b-404b-93b9-bd9bf1d453b7)
+
 
 The motor driver code ramps up to full speed, then tapers down to minimum speed. While doing this it gets into a starting state (using LM393 sensor), then hits the brakes on the motor if it reaches the target state. It tries again if it can't reach the target state. It also handles aborting if it can't get into the correct state after a period of time.
 
