@@ -11,16 +11,16 @@ class sleep_timer
         if (self.active)
             if (sleeptime < 0)
                 # Invalid sleep time - try again in 10 mins
-                mqtt.publish("catlap/lasterror", "invalid sleep time", true)
+                mqtt.publish("catflap/lasterror", "invalid sleep time", true)
                 sleeptime = 600
             end
             print("sleeping for ", sleeptime)
             tasmota.cmd(string.format("DeepSleepTime %d", int(sleeptime)))
 
             # if it gets to here it failed
-            mqtt.publish("catlap/lasterror", string.format("command failed: DeepSleepTime %d", int(sleeptime)), true)
+            mqtt.publish("catflap/lasterror", string.format("command failed: DeepSleepTime %d", int(sleeptime)), true)
         else
-            mqtt.publish("catlap/lasterror", "Attempt sleep while deactivated", true)
+            mqtt.publish("catflap/lasterror", "Attempt sleep while deactivated", true)
         end
     end
 
@@ -78,7 +78,7 @@ class sleep_timer
         if (!self.active)
             tasmota.cmd("DeepSleepTime 0")
             tasmota.resp_cmnd_str("deactivated") 
-            mqtt.publish("catlap/lasterror", "sleep paused", true)
+            mqtt.publish("catflap/lasterror", "sleep paused", true)
             return true
         end
 
