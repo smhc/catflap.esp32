@@ -7,7 +7,6 @@ class sleep_timer
     var active
     var m
     def gosleep(sleeptime)
-        mqtt.publish("catflap/lasterror", "Attempting to sleep", true)
         if (self.active)
             if (sleeptime < 0)
                 # Invalid sleep time - try again in 10 mins
@@ -17,8 +16,8 @@ class sleep_timer
             print("sleeping for ", sleeptime)
             tasmota.cmd(string.format("DeepSleepTime %d", int(sleeptime)))
 
-            # if it gets to here it failed
-            mqtt.publish("catflap/lasterror", string.format("command failed: DeepSleepTime %d", int(sleeptime)), true)
+            # if it gets to here it failed ?
+            # mqtt.publish("catflap/lasterror", string.format("command failed: DeepSleepTime %d", int(sleeptime)), true)
         else
             mqtt.publish("catflap/lasterror", "Attempt sleep while deactivated", true)
         end
@@ -100,17 +99,19 @@ class sleep_timer
             sleeptime = self.get_sleep_time(closestamp)
         elif (math.abs(closemins - curmins) < 20)
             print("locking evening")
-            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", openmins, closemins, curmins), true)
+            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", timestr, closemins, curmins), true)
             self.m.flapclose()
             sleeptime = self.get_sleep_time(openstamp)
         elif (openstamp < closestamp)
             # Should only occur when manually restarting out of hours
             mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", openmins, closemins, curmins), true)
+            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", timestr, curmins), true)
             self.m.flapclose()
             sleeptime = self.get_sleep_time(openstamp)
         else
             # Should only occur when manually restarting out of hours
             mqtt.publish("catflap/lockstatus", string.format("unlocking %s, %d, %d", timestr, openmins, curmins), true)
+            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", timestr, curmins), true)
             self.m.flapopen()
             sleeptime = self.get_sleep_time(closestamp)
         end
