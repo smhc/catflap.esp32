@@ -6,18 +6,18 @@ import math
 class sleep_timer
     var active
     var m
+    var curtime
+    var timestr
+
     def gosleep(sleeptime)
         if (self.active)
             if (sleeptime < 0)
                 # Invalid sleep time - try again in 10 mins
-                mqtt.publish("catflap/lasterror", "invalid sleep time", true)
+                mqtt.publish("catflap/lasterror", "Invalid sleep time", true)
                 sleeptime = 600
             end
             print("sleeping for ", sleeptime)
             tasmota.cmd(string.format("DeepSleepTime %d", int(sleeptime)))
-
-            # if it gets to here it failed ?
-            # mqtt.publish("catflap/lasterror", string.format("command failed: DeepSleepTime %d", int(sleeptime)), true)
         else
             mqtt.publish("catflap/lasterror", "Attempt sleep while deactivated", true)
         end
@@ -40,18 +40,18 @@ class sleep_timer
         tasmota.add_cron("0 30 16 * * *", / -> self.croncallback(), 12)
 
         self.active = 1
-
         mqtt.unsubscribe("catflap/pausesleep")
         mqtt.subscribe("catflap/pausesleep", / -> self.pausesleep())
         self.m = catflap.motor_limiter()
     end
 
     def get_sleep_time(target)
-        var curtime = tasmota.rtc()["local"]
+        # offset for when deepsleep actually gets invoked
+        var curtimeoff = self.curtime + 300
 
         var ds = 30
         for i: 10 .. 20000
-            var wake = (((int(curtime / ds)) + 1) * ds ) + (ds * 0.05)
+            var wake = (((int(curtimeoff / ds)) + 1) * ds ) + (ds * 0.05)
             if (math.abs(wake - target) < 300)
                 print('Sleep time: ', ds, i)
                 mqtt.publish("catflap/nextwake", tasmota.time_str(int(wake)), true)
@@ -62,22 +62,25 @@ class sleep_timer
             end
             ds += 30
         end
-        mqtt.publish("catflap/lasterror", string.format("no valid interval: %d, %d", curtime, target), true)
+        mqtt.publish("catflap/lasterror", string.format("no valid interval: %d, %d", curtimeoff, target), true)
         print('valid interval not found..')
         return -1
     end
 
     def process_wake()
-        var curtime = tasmota.rtc()["local"]
         var sleeptime
-        var timestr = tasmota.time_str(tasmota.rtc()["local"])
 
-        mqtt.publish("catflap/lastwake", timestr, true)
+        self.curtime = tasmota.rtc()["local"]
+        self.timestr = tasmota.time_str(self.curtime)
+
+        mqtt.publish("catflap/lastwake", self.timestr, true)
+        
+        # Need to disable sleeping to allow async timeout
+        tasmota.cmd("DeepSleepTime 0")
 
         if (!self.active)
-            tasmota.cmd("DeepSleepTime 0")
             tasmota.resp_cmnd_str("deactivated") 
-            mqtt.publish("catflap/lasterror", "sleep paused", true)
+            mqtt.publish("catflap/lasterror", string.format("sleep paused %s", self.timestr), true)
             return true
         end
 
@@ -90,32 +93,33 @@ class sleep_timer
 
         var openmins  = (tasmota.time_dump(openstamp)["hour"] * 60) + tasmota.time_dump(openstamp)["min"]
         var closemins = (tasmota.time_dump(closestamp)["hour"] * 60) + tasmota.time_dump(closestamp)["min"]
-        var curmins   = (tasmota.time_dump(curtime)["hour"] * 60) + tasmota.time_dump(curtime)["min"]
+        var curmins   = (tasmota.time_dump(self.curtime)["hour"] * 60) + tasmota.time_dump(self.curtime)["min"]
 
         if (math.abs(openmins - curmins) < 20)
             print("unlocking morning")
-            mqtt.publish("catflap/lockstatus", string.format("unlocking %s, %d, %d", timestr, openmins, curmins), true)
+            mqtt.publish("catflap/lockstatus", string.format("unlocking %s, %d, %d", self.timestr, openmins, curmins), true)
             self.m.flapopen()
             sleeptime = self.get_sleep_time(closestamp)
         elif (math.abs(closemins - curmins) < 20)
             print("locking evening")
-            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", timestr, closemins, curmins), true)
+            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", self.timestr, closemins, curmins), true)
             self.m.flapclose()
             sleeptime = self.get_sleep_time(openstamp)
         elif (openstamp < closestamp)
             # Should only occur when manually restarting out of hours
-            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", openmins, closemins, curmins), true)
-            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", timestr, curmins), true)
+            mqtt.publish("catflap/lockstatus", string.format("locking %s, %d, %d", self.timestr, openstamp, closestamp), true)
+            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", self.timestr, curmins), true)
             self.m.flapclose()
             sleeptime = self.get_sleep_time(openstamp)
         else
             # Should only occur when manually restarting out of hours
-            mqtt.publish("catflap/lockstatus", string.format("unlocking %s, %d, %d", timestr, openmins, curmins), true)
-            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", timestr, curmins), true)
+            mqtt.publish("catflap/lockstatus", string.format("unlocking %s, %d, %d", self.timestr, openstamp, closestamp), true)
+            mqtt.publish("catflap/lasterror", string.format("outofhours %s, %d", self.timestr, curmins), true)
             self.m.flapopen()
             sleeptime = self.get_sleep_time(closestamp)
         end
         mqtt.publish("catflap/sleeptime", string.format("%d", sleeptime), true)
+
         # Allow time for locking mechanism
         tasmota.set_timer(3000, / -> self.gosleep(sleeptime))
         return true
