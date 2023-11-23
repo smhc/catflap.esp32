@@ -47,7 +47,7 @@ class sleep_timer
 
     def get_sleep_time(target)
         # offset for when deepsleep actually gets invoked
-        var curtimeoff = self.curtime + 300
+        var curtimeoff = self.curtime + 3
 
         var ds = 30
         for i: 10 .. 20000
