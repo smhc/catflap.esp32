@@ -2,6 +2,18 @@
 
 -------------
 
-Rule1
+Timer1
+20:01:16.423 MQT: stat/tasmota_061948/RESULT = {"Timer1":{"Enable":1,"Mode":0,"Time":"05:00","Window":0,"Days":"1111111","Repeat":1,"Action":3}}
+
+Timer2
+20:01:18.477 MQT: stat/tasmota_061948/RESULT = {"Timer2":{"Enable":1,"Mode":0,"Time":"16:30","Window":0,"Days":"1111111","Repeat":1,"Action":3}}
+
+-------------
+
+Rule1 Wakeup
+Rule1 0
+
+Rule2
 on time#initialized do backlog ruletimer1 1 endon
 on rules#timer=1 do ProcessWake endon
+Rule2 1
